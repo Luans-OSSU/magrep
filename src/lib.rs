@@ -29,10 +29,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn search<'a>(query: &str, filename: &'a str) -> Vec<&'a str> {
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
     let mut matches = Vec::new();
 
-    for line in filename.lines() {
+    for line in contents.lines() {
         if line.contains(query) {
             matches.push(line)
         }
