@@ -1,9 +1,11 @@
+use std::env;
 use std::error::Error;
 use std::fs;
 
 pub struct Config {
     pub query: String,
     pub filename: String,
+    pub is_case_sensitive: bool,
 }
 
 impl Config {
@@ -14,15 +16,26 @@ impl Config {
 
         let query = args[1].clone();
         let filename = args[2].clone();
+        let is_case_sensitive = env::var("CASE_INSENSITIVE").is_err();
 
-        Ok(Config { query, filename })
+        Ok(Config {
+            query,
+            filename,
+            is_case_sensitive,
+        })
     }
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let file_contents = fs::read_to_string(config.filename)?;
 
-    for line in search(&config.query, &file_contents) {
+    let matches = if config.is_case_sensitive {
+        search(&config.query, &file_contents)
+    } else {
+        search_case_insensitive(&config.query, &file_contents)
+    };
+
+    for line in matches {
         println!("{}", line);
     }
 
@@ -34,6 +47,19 @@ pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
 
     for line in contents.lines() {
         if line.contains(query) {
+            matches.push(line)
+        }
+    }
+
+    matches
+}
+
+pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    let query = query.to_lowercase();
+    let mut matches = Vec::new();
+
+    for line in contents.lines() {
+        if line.to_lowercase().contains(&query) {
             matches.push(line)
         }
     }
@@ -69,6 +95,35 @@ lards the lean earth as he walks along.";
                 "lards the lean earth as he walks along."
             ],
             search(query, contents)
+        )
+    }
+
+    #[test]
+    fn case_sensitive_query() {
+        let query = "fal";
+        let contents = "\
+Falstaff sweats to death and
+lards the lean earth as he walks falong.";
+
+        assert_eq!(
+            vec!["lards the lean earth as he walks falong."],
+            search(query, contents)
+        )
+    }
+
+    #[test]
+    fn case_insensitive_query() {
+        let query = "Fal";
+        let contents = "\
+Falstaff sweats to death and
+lards the lean earth as he walks falong.";
+
+        assert_eq!(
+            vec![
+                "Falstaff sweats to death and",
+                "lards the lean earth as he walks falong."
+            ],
+            search_case_insensitive(query, contents)
         )
     }
 }
